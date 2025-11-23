@@ -392,7 +392,7 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
     button = buttons.build_menu(8)
 
     # system stats lines (ASCII style)
-    msg += f"\n CPU: {cpu_percent()}% | Free: {get_readable_file_size(disk_usage(DOWNLOAD_DIR).free)} [{round(100  disk_usage(DOWNLOAD_DIR).percent, 1)}%]"
-    msg += f"\n RAM: {virtual_memory().percent}% | Uptime -> {get_readable_time(time()  bot_start_time)}"
+    msg += f"\n CPU: {cpu_percent()}% | Free: {get_readable_file_size(disk_usage(DOWNLOAD_DIR).free)} [{round(100 - disk_usage(DOWNLOAD_DIR).percent, 1)}%]"
+    msg += f"\n RAM: {virtual_memory().percent}% | Uptime -> {get_readable_time(time() - bot_start_time)}"
 
     return msg, button
