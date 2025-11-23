@@ -200,15 +200,11 @@ def get_progress_bar_string(pct):
 
 
 async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=1):
-    """
-    Old-UI styling (BotTheme blocks + header/footer) while keeping all new-UI fields.
-    Preserves logic, awaits, pagination, and button callbacks exactly.
-    """
-    # Old UI header restored
+    # Old UI header (exact)
     msg = '<b><a href="https://t.me/DhruvMirrorUpdates"><u>Dhruv Mirror Premium</u></a>\n\n</b>'
     button = None
 
-    # Collect tasks exactly like new UI does
+    # collect tasks same as new UI
     tasks = await get_specific_tasks(status, sid if is_user else None)
 
     STATUS_LIMIT = Config.STATUS_LIMIT
@@ -222,9 +218,8 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
         status_dict.setdefault(sid, {})["page_no"] = page_no
     start_position = (page_no - 1) * STATUS_LIMIT
 
-    # Build each task block using OLD UI BotTheme keys & order, but include new fields
+    # Build per-task blocks with ASCII markers (no box glyphs)
     for index, task in enumerate(tasks[start_position : STATUS_LIMIT + start_position], start=1):
-        # Resolve status (preserve awaits)
         if status != "All":
             tstatus = status
         elif iscoroutinefunction(task.status):
@@ -232,183 +227,172 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
         else:
             tstatus = task.status()
 
-        # Message link logic (same as old)
-        msg_link = ""
+        # number + title
+        msg += f"<b>{index + start_position}.</b> "
+        msg += f"<b><i>{escape(f'{task.name()}')}</i></b>"
+
+        # subname
+        if getattr(task.listener, "subname", None):
+            msg += f"\n- Sub Name -> <i>{task.listener.subname}</i>"
+        elapsed = time() - task.listener.message.date.timestamp()
+
+        # user + optional link
+        msg += f"\n\n<b>Task By {task.listener.message.from_user.mention(style='html')} </b> ( #ID{task.listener.message.from_user.id} )"
         try:
             if getattr(task.listener.message, "chat", None) and getattr(task.listener.message.chat, "type", None) in [ChatType.SUPERGROUP, ChatType.CHANNEL] and not Config.DELETE_LINKS:
                 msg_link = task.listener.message.link
+            else:
+                msg_link = ''
         except Exception:
-            msg_link = ""
+            msg_link = ''
+        if getattr(task.listener, "is_super_chat", False) and msg_link:
+            msg += f" <i>[<a href='{msg_link}'>Link</a>]</i>"
 
-        elapsed = time() - task.listener.message.date.timestamp()
+        # Progress / normal tasks
+        if (tstatus not in [MirrorStatus.STATUS_SEED, MirrorStatus.STATUS_QUEUEUP]) and getattr(task.listener, "progress", False):
+            progress = task.progress()
+            # progress bar row (keep progress bar string as before)
+            msg += f"\n- {get_progress_bar_string(progress)} {progress}"
+            # processed line
+            if getattr(task.listener, "subname", None):
+                subsize = f" / {get_readable_file_size(task.listener.subsize)}"
+                ac = len(getattr(task.listener, "files_to_proceed", []))
+                count = f"( {getattr(task.listener, 'proceed_count', '?')} / {ac or '?'} )"
+            else:
+                subsize = ""
+                count = ""
+            msg += f"\n- Processed -> <i>{task.processed_bytes()}{subsize} of {task.size()}</i>"
+            if count:
+                msg += f"\n- Count -> <b>{count}</b>"
 
-        # STATUS_NAME (old UI)
-        msg += BotTheme(
-            'STATUS_NAME',
-            Name="Task is being Processed!" if Config.SAFE_MODE and elapsed >= Config.STATUS_UPDATE_INTERVAL else escape(f"{task.name()}")
-        )
+            msg += f"\n- Status -> <b>{tstatus}</b>"
+            msg += f"\n- Speed -> <i>{task.speed()}</i>"
 
-        # Progress block for non-seed/split tasks (old UI keys)
-        if tstatus not in [MirrorStatus.STATUS_SPLIT, MirrorStatus.STATUS_SEED] and getattr(task.listener, "progress", False):
-            msg += BotTheme('BAR', Bar=f"{get_progress_bar_string(task.progress())} {task.progress()}")
-            msg += BotTheme('PROCESSED', Processed=f"{task.processed_bytes()} of {task.size()}")
-            msg += BotTheme('STATUS', Status=tstatus, Url=msg_link)
-            msg += BotTheme('ETA', Eta=task.eta())
-            msg += BotTheme('SPEED', Speed=task.speed())
-            msg += BotTheme('ELAPSED', Elapsed=get_readable_time(elapsed))
-            msg += BotTheme('ENGINE', Engine=getattr(task, 'engine', ''))
-
-            # Preserve old STA_MODE (for templates that expect it) and also include IN/OUT Mode
-            # STA_MODE: old behaviour (prefer upload_details['mode'] or listener.mode[0])
+            # ETA + total
             try:
-                # Prefer upload_details['mode'] if present (old UI used upload_details['mode'])
-                if getattr(task, 'upload_details', None) and isinstance(task.upload_details.get('mode', None), (list, tuple, str)):
-                    # If upload_details['mode'] is string/list, provide it
-                    ud_mode = task.upload_details.get('mode')
-                    msg += BotTheme('STA_MODE', Mode=ud_mode)
-                else:
-                    # fallback to listener.mode first element
-                    lm = task.listener.mode
-                    msg += BotTheme('STA_MODE', Mode=lm[0])
+                eta_str = task.eta()
+                total_time = elapsed + get_raw_time(eta_str)
+                msg += f"\n- Time -> <i>{eta_str} of {get_readable_time(total_time)} ( {get_readable_time(elapsed)} )</i>"
             except Exception:
-                # fail-safe: skip STA_MODE if unavailable
+                msg += f"\n- Time -> <i>{task.eta()} ( {get_readable_time(elapsed)} )</i>"
+
+            # Engine
+            msg += f"\n- Engine -> <i>{getattr(task, 'engine', '')}</i>"
+
+            # STA_MODE (backwards-compatible)
+            try:
+                if getattr(task, 'upload_details', None) and 'mode' in task.upload_details:
+                    ud_mode = task.upload_details['mode']
+                    msg += f"\n- Mode -> <i>{ud_mode}</i>"
+                else:
+                    lm0 = task.listener.mode[0]
+                    msg += f"\n- Mode -> <i>{lm0}</i>"
+            except Exception:
                 pass
 
-            # IN_MODE and OUT_MODE: new UI fields (keep them visible)
+            # IN_MODE / OUT_MODE (new fields)
             try:
                 in_mode, out_mode = task.listener.mode
-                msg += BotTheme('IN_MODE', Mode=in_mode)
-                msg += BotTheme('OUT_MODE', Mode=out_mode)
+                msg += f"\n- In Mode -> <i>{in_mode}</i>"
+                msg += f"\n- Out Mode -> <i>{out_mode}</i>"
             except Exception:
-                # if listener.mode not present, try upload_details or skip
                 try:
-                    ud_mode = task.upload_details.get('mode', None)
+                    ud_mode = task.upload_details.get('mode', None) if getattr(task, 'upload_details', None) else None
                     if isinstance(ud_mode, (list, tuple)) and len(ud_mode) >= 2:
-                        msg += BotTheme('IN_MODE', Mode=ud_mode[0])
-                        msg += BotTheme('OUT_MODE', Mode=ud_mode[1])
+                        msg += f"\n- In Mode -> <i>{ud_mode[0]}</i>"
+                        msg += f"\n- Out Mode -> <i>{ud_mode[1]}</i>"
                 except Exception:
                     pass
 
-            # Seeders/Leechers if present
+            # Seeders / Leechers
             if hasattr(task, 'seeders_num'):
                 try:
-                    msg += BotTheme('SEEDERS', Seeders=task.seeders_num())
-                    msg += BotTheme('LEECHERS', Leechers=task.leechers_num())
+                    msg += f"\n- Seeders -> {task.seeders_num()} | Leechers -> {task.leechers_num()}"
                 except Exception:
                     pass
 
-        # Seeding block (old UI keys) but keep engine/time/ratio fields
+        # Seeding block
         elif tstatus == MirrorStatus.STATUS_SEED:
-            msg += BotTheme('STATUS', Status=tstatus, Url=msg_link)
-            msg += BotTheme('SEED_SIZE', Size=task.size())
+            msg += f"\n- Size -> <i>{task.size()}</i> | Uploaded -> <i>{task.uploaded_bytes()}</i>"
+            msg += f"\n- Status -> <b>{tstatus}</b>"
             try:
-                seed_speed_val = task.seed_speed()
-            except Exception:
-                seed_speed_val = getattr(task, 'upload_speed', lambda: '')()
-            msg += BotTheme('SEED_SPEED', Speed=seed_speed_val)
-            try:
-                msg += BotTheme('UPLOADED', Upload=task.uploaded_bytes())
-                msg += BotTheme('RATIO', Ratio=task.ratio())
-                msg += BotTheme('TIME', Time=task.seeding_time())
-                msg += BotTheme('SEED_ENGINE', Engine=getattr(task, 'engine', ''))
+                msg += f"\n- Speed -> <i>{task.seed_speed()}</i>"
             except Exception:
                 pass
-
-            # Also include In/Out mode for seed tasks if available
+            try:
+                msg += f"\n- Ratio -> <i>{task.ratio()}</i>"
+            except Exception:
+                pass
+            try:
+                msg += f"\n- Time -> <i>{task.seeding_time()}</i> | Elapsed -> <i>{get_readable_time(elapsed)}</i>"
+            except Exception:
+                pass
+            msg += f"\n- Engine -> <i>{getattr(task, 'engine', '')}</i>"
             try:
                 in_mode, out_mode = task.listener.mode
-                msg += BotTheme('IN_MODE', Mode=in_mode)
-                msg += BotTheme('OUT_MODE', Mode=out_mode)
+                msg += f"\n- In Mode -> <i>{in_mode}</i>"
+                msg += f"\n- Out Mode -> <i>{out_mode}</i>"
             except Exception:
                 pass
 
-        # Fallback block for split/other tasks (old UI keys) but include IN/OUT if present
+        # Fallback other statuses
         else:
-            msg += BotTheme('STATUS', Status=tstatus, Url=msg_link)
-            msg += BotTheme('STATUS_SIZE', Size=task.size())
-            msg += BotTheme('NON_ENGINE', Engine=getattr(task, 'engine', ''))
+            msg += f"\n- Size -> <i>{task.size()}</i>"
+            msg += f"\n- Engine -> <i>{getattr(task, 'engine', '')}</i>"
             try:
                 in_mode, out_mode = task.listener.mode
-                msg += BotTheme('IN_MODE', Mode=in_mode)
-                msg += BotTheme('OUT_MODE', Mode=out_mode)
+                msg += f"\n- In Mode -> <i>{in_mode}</i>"
+                msg += f"\n- Out Mode -> <i>{out_mode}</i>"
             except Exception:
                 pass
 
-        # USER and ID (old UI style)
+        # Plain User/ID line (ASCII style)
         try:
-            msg += BotTheme('USER', User=task.listener.message.from_user.mention(style="html"))
-            msg += BotTheme('ID', Id=task.listener.message.from_user.id)
+            msg += f"\n- User -> {task.listener.message.from_user.mention(style='html')} | ID -> {task.listener.message.from_user.id}"
         except Exception:
-            msg += BotTheme('USER', User='')
-            msg += BotTheme('ID', Id='')
+            pass
 
-        # qBittorrent select + cancel (same commands)
+        # qBit select/cancel (ASCII)
         if getattr(task, 'engine', '').startswith("qBit"):
-            msg += BotTheme('BTSEL', Btsel=f"/{BotCommands.BtSelectCommand}_{task.gid()}")
-        msg += BotTheme('CANCEL', Cancel=f"/{BotCommands.CancelMirror}_{task.gid()}")
-
-    # If nothing was appended, preserve original behavior
-    if len(msg) == 0:
-        return None, None
-
-    # Totals (iterate task_dict like old UI)
-    dl_speed = 0
-    up_speed = 0
-
-    def _convert_speed(spd):
-        try:
-            return speed_string_to_bytes(spd)
-        except Exception:
             try:
-                s = str(spd).upper()
-                if 'K' in s:
-                    return float(s.split('K')[0]) * 1024
-                if 'M' in s:
-                    return float(s.split('M')[0]) * 1048576
-                if 'G' in s:
-                    return float(s.split('G')[0]) * 1073741824
-                if 'T' in s:
-                    return float(s.split('T')[0]) * 1099511627776
+                # qBit select/cancel formatting like old UI but ASCII
+                msg += f"\n- Select -> /{BotCommands.BtSelectCommand}_{task.gid()}"
+                msg += f"\n- Cancel -> /{BotCommands.CancelMirror}_{task.gid()}"
             except Exception:
-                return 0
-            return 0
+                pass
 
-    for tk in task_dict.values():
-        try:
-            tstatus = tk.status() if not iscoroutinefunction(tk.status) else await tk.status()
-        except Exception:
-            try:
-                tstatus = tk.status()
-            except Exception:
-                tstatus = ""
-        spd = tk.speed() if tstatus != MirrorStatus.STATUS_SEED else getattr(tk, 'upload_speed', lambda: '')()
-        speed_in_bytes_per_second = _convert_speed(spd)
-        if tstatus == MirrorStatus.STATUS_DOWNLOAD:
-            dl_speed += speed_in_bytes_per_second
-        elif tstatus in [MirrorStatus.STATUS_UPLOAD, MirrorStatus.STATUS_SEED]:
-            up_speed += speed_in_bytes_per_second
+        # Stop command (ASCII)
+        from ..telegram_helper.bot_commands import BotCommands
+        msg += f"\n- Stop -> <i>/{BotCommands.CancelTaskCommand[1]}_{task.gid()}</i>\n\n"
 
-    # Footer & buttons (old UI)
-    msg += BotTheme('FOOTER')
-    buttons = ButtonMaker()
-    buttons.ibutton(BotTheme('REFRESH', Page=f"{status_dict.get(sid, {}).get('page_no', page_no)}/{pages}"), "status ref")
-    if tasks_no > STATUS_LIMIT:
-        if Config.BOT_MAX_TASKS:
-            msg += BotTheme('BOT_TASKS', Tasks=tasks_no, Ttask=Config.BOT_MAX_TASKS, Free=Config.BOT_MAX_TASKS - tasks_no)
+    # If nothing appended
+    if len(msg.strip()) == 0:
+        if status == "All":
+            return None, None
         else:
-            msg += BotTheme('TASKS', Tasks=tasks_no)
-        buttons = ButtonMaker()
-        buttons.ibutton(BotTheme('PREVIOUS'), "status pre")
-        buttons.ibutton(BotTheme('REFRESH', Page=f"{status_dict.get(sid, {}).get('page_no', page_no)}/{pages}"), "status ref")
-        buttons.ibutton(BotTheme('NEXT'), "status nex")
-    button = buttons.build_menu(3)
+            msg = f"No Active {status} Tasks!\n\n"
 
-    # System stats (old UI style)
-    msg += BotTheme('Cpu', cpu=cpu_percent())
-    msg += BotTheme('FREE', free=get_readable_file_size(disk_usage(DOWNLOAD_DIR).free), free_p=round(100 - disk_usage(DOWNLOAD_DIR).percent, 1))
-    msg += BotTheme('Ram', ram=virtual_memory().percent)
-    msg += BotTheme('uptime', uptime=get_readable_time(time() - bot_start_time))
-    msg += BotTheme('DL', DL=get_readable_file_size(int(dl_speed)))
-    msg += BotTheme('UL', UL=get_readable_file_size(int(up_speed)))
+    # Footer and buttons
+    msg += "⌬ <b><u>Bot Stats</u></b>"
+    buttons = ButtonMaker()
+    if not is_user:
+        buttons.data_button("📜 TStats", f"status {sid} ov", position="header")
+    if tasks_no > STATUS_LIMIT:
+        msg += f"<b>Page:</b> {page_no}/{pages} | <b>Tasks:</b> {tasks_no} | <b>Step:</b> {page_step}\n"
+        buttons.data_button("<<", f"status {sid} pre", position="header")
+        buttons.data_button(">>", f"status {sid} nex", position="header")
+        if tasks_no > 30:
+            for i in [1, 2, 4, 6, 8, 10, 15]:
+                buttons.data_button(i, f"status {sid} ps {i}", position="footer")
+    if status != "All" or tasks_no > 20:
+        for label, status_value in list(STATUSES.items()):
+            if status_value != status:
+                buttons.data_button(label, f"status {sid} st {status_value}")
+    buttons.data_button("♻️ Refresh", f"status {sid} ref", position="header")
+    button = buttons.build_menu(8)
+
+    # system stats lines (ASCII style)
+    msg += f"\n- CPU -> {cpu_percent()}% | Free -> {get_readable_file_size(disk_usage(DOWNLOAD_DIR).free)} [{round(100 - disk_usage(DOWNLOAD_DIR).percent, 1)}%]"
+    msg += f"\n- RAM -> {virtual_memory().percent}% | Uptime -> {get_readable_time(time() - bot_start_time)}"
 
     return msg, button
