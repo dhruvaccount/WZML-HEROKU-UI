@@ -233,11 +233,11 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
 
         # subname
         if getattr(task.listener, "subname", None):
-            msg += f"\n- Sub Name -> <i>{task.listener.subname}</i>"
+            msg += f"\n Sub Name: <i>{task.listener.subname}</i>"
         elapsed = time() - task.listener.message.date.timestamp()
 
         # user + optional link
-        msg += f"\n\n<b>User: {task.listener.message.from_user.mention(style='html')} </b> | ID: {task.listener.message.from_user.id} "
+        msg += f"\n<b>User: {task.listener.message.from_user.mention(style='html')} </b> | ID: {task.listener.message.from_user.id} "
         try:
             if getattr(task.listener.message, "chat", None) and getattr(task.listener.message.chat, "type", None) in [ChatType.SUPERGROUP, ChatType.CHANNEL] and not Config.DELETE_LINKS:
                 msg_link = task.listener.message.link
@@ -280,27 +280,34 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
             msg += f"\n Engine: <i>{getattr(task, 'engine', '')}</i>"
 
             # STA_MODE (backwards-compatible)
+                        # STA_MODE (backwards-compatible) — show without leading '#'
             try:
                 if getattr(task, 'upload_details', None) and 'mode' in task.upload_details:
                     ud_mode = task.upload_details['mode']
-                    msg += f"\n Mode: <i>{ud_mode}</i>"
+                    # ud_mode may be string or list/tuple — handle both
+                    if isinstance(ud_mode, (list, tuple)):
+                        # display joined modes (strip leading '#' on each)
+                        ud_mode_display = " | ".join(m.lstrip('#') for m in ud_mode)
+                    else:
+                        ud_mode_display = str(ud_mode).lstrip('#')
+                    msg += f"\n Mode: <i>{ud_mode_display}</i>"
                 else:
-                    lm0 = task.listener.mode[0]
+                    lm0 = str(task.listener.mode[0]).lstrip('#')
                     msg += f"\n Mode: <i>{lm0}</i>"
             except Exception:
                 pass
 
-            # IN_MODE / OUT_MODE (new fields)
+            # IN_MODE / OUT_MODE (new fields) — strip leading '#'
             try:
                 in_mode, out_mode = task.listener.mode
-                msg += f"\n In Mode: <i>{in_mode}</i>"
-                msg += f"\n Out Mode: <i>{out_mode}</i>"
+                msg += f"\n In Mode: <i>{str(in_mode).lstrip('#')}</i>"
+                msg += f"\n Out Mode: <i>{str(out_mode).lstrip('#')}</i>"
             except Exception:
                 try:
                     ud_mode = task.upload_details.get('mode', None) if getattr(task, 'upload_details', None) else None
                     if isinstance(ud_mode, (list, tuple)) and len(ud_mode) >= 2:
-                        msg += f"\n In Mode: <i>{ud_mode[0]}</i>"
-                        msg += f"\n Out Mode: <i>{ud_mode[1]}</i>"
+                        msg += f"\n In Mode: <i>{str(ud_mode[0]).lstrip('#')}</i>"
+                        msg += f"\n Out Mode: <i>{str(ud_mode[1]).lstrip('#')}</i>"
                 except Exception:
                     pass
 
