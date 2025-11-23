@@ -228,7 +228,7 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
             tstatus = task.status()
 
         # number + title
-        msg += f"<b>{index + start_position}.</b> "
+        msg += f"<b>📁 Name : </b> "
         msg += f"<b><i>{escape(f'{task.name()}')}</i></b>"
 
         # subname
@@ -237,7 +237,7 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
         elapsed = time() - task.listener.message.date.timestamp()
 
         # user + optional link
-        msg += f"\n\n<b>Task By {task.listener.message.from_user.mention(style='html')} </b> ( #ID{task.listener.message.from_user.id} )"
+        msg += f"\n\n<b>User: {task.listener.message.from_user.mention(style='html')} </b> | ID: {task.listener.message.from_user.id} "
         try:
             if getattr(task.listener.message, "chat", None) and getattr(task.listener.message.chat, "type", None) in [ChatType.SUPERGROUP, ChatType.CHANNEL] and not Config.DELETE_LINKS:
                 msg_link = task.listener.message.link
@@ -252,7 +252,7 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
         if (tstatus not in [MirrorStatus.STATUS_SEED, MirrorStatus.STATUS_QUEUEUP]) and getattr(task.listener, "progress", False):
             progress = task.progress()
             # progress bar row (keep progress bar string as before)
-            msg += f"\n- {get_progress_bar_string(progress)} {progress}"
+            msg += f"\nProgress: {get_progress_bar_string(progress)} {progress}"
             # processed line
             if getattr(task.listener, "subname", None):
                 subsize = f" / {get_readable_file_size(task.listener.subsize)}"
@@ -261,94 +261,94 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
             else:
                 subsize = ""
                 count = ""
-            msg += f"\n- Processed -> <i>{task.processed_bytes()}{subsize} of {task.size()}</i>"
+            msg += f"\n Processed: <i>{task.processed_bytes()}{subsize} of {task.size()}</i>"
             if count:
-                msg += f"\n- Count -> <b>{count}</b>"
+                msg += f"\n Count: <b>{count}</b>"
 
-            msg += f"\n- Status -> <b>{tstatus}</b>"
-            msg += f"\n- Speed -> <i>{task.speed()}</i>"
+            msg += f"\n Status: <b>{tstatus}</b>"
+            msg += f"\n Speed: <i>{task.speed()}</i>"
 
             # ETA + total
             try:
                 eta_str = task.eta()
                 total_time = elapsed + get_raw_time(eta_str)
-                msg += f"\n- Time -> <i>{eta_str} of {get_readable_time(total_time)} ( {get_readable_time(elapsed)} )</i>"
+                msg += f"\n Time: <i>{eta_str} of {get_readable_time(total_time)} ( {get_readable_time(elapsed)} )</i>"
             except Exception:
-                msg += f"\n- Time -> <i>{task.eta()} ( {get_readable_time(elapsed)} )</i>"
+                msg += f"\n Time: <i>{task.eta()} ( {get_readable_time(elapsed)} )</i>"
 
             # Engine
-            msg += f"\n- Engine -> <i>{getattr(task, 'engine', '')}</i>"
+            msg += f"\n Engine: <i>{getattr(task, 'engine', '')}</i>"
 
             # STA_MODE (backwards-compatible)
             try:
                 if getattr(task, 'upload_details', None) and 'mode' in task.upload_details:
                     ud_mode = task.upload_details['mode']
-                    msg += f"\n- Mode -> <i>{ud_mode}</i>"
+                    msg += f"\n Mode: <i>{ud_mode}</i>"
                 else:
                     lm0 = task.listener.mode[0]
-                    msg += f"\n- Mode -> <i>{lm0}</i>"
+                    msg += f"\n Mode: <i>{lm0}</i>"
             except Exception:
                 pass
 
             # IN_MODE / OUT_MODE (new fields)
             try:
                 in_mode, out_mode = task.listener.mode
-                msg += f"\n- In Mode -> <i>{in_mode}</i>"
-                msg += f"\n- Out Mode -> <i>{out_mode}</i>"
+                msg += f"\n In Mode: <i>{in_mode}</i>"
+                msg += f"\n Out Mode: <i>{out_mode}</i>"
             except Exception:
                 try:
                     ud_mode = task.upload_details.get('mode', None) if getattr(task, 'upload_details', None) else None
                     if isinstance(ud_mode, (list, tuple)) and len(ud_mode) >= 2:
-                        msg += f"\n- In Mode -> <i>{ud_mode[0]}</i>"
-                        msg += f"\n- Out Mode -> <i>{ud_mode[1]}</i>"
+                        msg += f"\n In Mode: <i>{ud_mode[0]}</i>"
+                        msg += f"\n Out Mode: <i>{ud_mode[1]}</i>"
                 except Exception:
                     pass
 
             # Seeders / Leechers
             if hasattr(task, 'seeders_num'):
                 try:
-                    msg += f"\n- Seeders -> {task.seeders_num()} | Leechers -> {task.leechers_num()}"
+                    msg += f"\n Seeders: {task.seeders_num()} | Leechers: {task.leechers_num()}"
                 except Exception:
                     pass
 
         # Seeding block
         elif tstatus == MirrorStatus.STATUS_SEED:
-            msg += f"\n- Size -> <i>{task.size()}</i> | Uploaded -> <i>{task.uploaded_bytes()}</i>"
-            msg += f"\n- Status -> <b>{tstatus}</b>"
+            msg += f"\n Size: <i>{task.size()}</i> | Uploaded: <i>{task.uploaded_bytes()}</i>"
+            msg += f"\n Status: <b>{tstatus}</b>"
             try:
-                msg += f"\n- Speed -> <i>{task.seed_speed()}</i>"
+                msg += f"\n Speed: <i>{task.seed_speed()}</i>"
             except Exception:
                 pass
             try:
-                msg += f"\n- Ratio -> <i>{task.ratio()}</i>"
+                msg += f"\n Ratio: <i>{task.ratio()}</i>"
             except Exception:
                 pass
             try:
-                msg += f"\n- Time -> <i>{task.seeding_time()}</i> | Elapsed -> <i>{get_readable_time(elapsed)}</i>"
+                msg += f"\n Time: <i>{task.seeding_time()}</i> | Elapsed: <i>{get_readable_time(elapsed)}</i>"
             except Exception:
                 pass
-            msg += f"\n- Engine -> <i>{getattr(task, 'engine', '')}</i>"
+            msg += f"\n Engine: <i>{getattr(task, 'engine', '')}</i>"
             try:
                 in_mode, out_mode = task.listener.mode
-                msg += f"\n- In Mode -> <i>{in_mode}</i>"
-                msg += f"\n- Out Mode -> <i>{out_mode}</i>"
+                msg += f"\n In Mode: <i>{in_mode}</i>"
+                msg += f"\n Out Mode: <i>{out_mode}</i>"
             except Exception:
                 pass
 
         # Fallback other statuses
         else:
-            msg += f"\n- Size -> <i>{task.size()}</i>"
-            msg += f"\n- Engine -> <i>{getattr(task, 'engine', '')}</i>"
+            msg += f"\n Size: <i>{task.size()}</i>"
+            msg += f"\n Engine: <i>{getattr(task, 'engine', '')}</i>"
             try:
                 in_mode, out_mode = task.listener.mode
-                msg += f"\n- In Mode -> <i>{in_mode}</i>"
-                msg += f"\n- Out Mode -> <i>{out_mode}</i>"
+                msg += f"\n In Mode: <i>{in_mode}</i>"
+                msg += f"\n Out Mode: <i>{out_mode}</i>"
             except Exception:
                 pass
 
         # Plain User/ID line (ASCII style)
         try:
-            msg += f"\n- User -> {task.listener.message.from_user.mention(style='html')} | ID -> {task.listener.message.from_user.id}"
+            msg += f"\n User: {task.listener.message.from_user.mention(style='html')} | ID: {task.listener.message.from_user.id}"
         except Exception:
             pass
 
@@ -356,14 +356,14 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
         if getattr(task, 'engine', '').startswith("qBit"):
             try:
                 # qBit select/cancel formatting like old UI but ASCII
-                msg += f"\n- Select -> /{BotCommands.BtSelectCommand}_{task.gid()}"
-                msg += f"\n- Cancel -> /{BotCommands.CancelMirror}_{task.gid()}"
+                msg += f"\n Select: /{BotCommands.BtSelectCommand}_{task.gid()}"
+                msg += f"\n Cancel: /{BotCommands.CancelMirror}_{task.gid()}"
             except Exception:
                 pass
 
         # Stop command (ASCII)
         from ..telegram_helper.bot_commands import BotCommands
-        msg += f"\n- Stop -> <i>/{BotCommands.CancelTaskCommand[1]}_{task.gid()}</i>\n\n"
+        msg += f"\n Stop: <i>/{BotCommands.CancelTaskCommand[1]}_{task.gid()}</i>\n\n"
 
     # If nothing appended
     if len(msg.strip()) == 0:
@@ -392,7 +392,7 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
     button = buttons.build_menu(8)
 
     # system stats lines (ASCII style)
-    msg += f"\n- CPU -> {cpu_percent()}% | Free -> {get_readable_file_size(disk_usage(DOWNLOAD_DIR).free)} [{round(100 - disk_usage(DOWNLOAD_DIR).percent, 1)}%]"
-    msg += f"\n- RAM -> {virtual_memory().percent}% | Uptime -> {get_readable_time(time() - bot_start_time)}"
+    msg += f"\n CPU: {cpu_percent()}% | Free: {get_readable_file_size(disk_usage(DOWNLOAD_DIR).free)} [{round(100  disk_usage(DOWNLOAD_DIR).percent, 1)}%]"
+    msg += f"\n RAM: {virtual_memory().percent}% | Uptime -> {get_readable_time(time()  bot_start_time)}"
 
     return msg, button
