@@ -353,7 +353,7 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
 
         # Plain User/ID line (ASCII style)
         try:
-            msg += f"\n User: {task.listener.message.from_user.mention(style='html')} | ID: {task.listener.message.from_user.id}"
+            msg += f"\n<b>User:</b> {task.listener.message.from_user.mention(style='html')} | <b>ID:</b> {task.listener.message.from_user.id}"
         except Exception:
             pass
 
