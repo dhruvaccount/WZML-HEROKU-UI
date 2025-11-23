@@ -236,8 +236,6 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
             msg += f"\n Sub Name: <i>{task.listener.subname}</i>"
         elapsed = time() - task.listener.message.date.timestamp()
 
-        # user + optional link
-        msg += f"\n<b>User: {task.listener.message.from_user.mention(style='html')} </b> | ID: {task.listener.message.from_user.id} "
         try:
             if getattr(task.listener.message, "chat", None) and getattr(task.listener.message.chat, "type", None) in [ChatType.SUPERGROUP, ChatType.CHANNEL] and not Config.DELETE_LINKS:
                 msg_link = task.listener.message.link
@@ -252,7 +250,7 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
         if (tstatus not in [MirrorStatus.STATUS_SEED, MirrorStatus.STATUS_QUEUEUP]) and getattr(task.listener, "progress", False):
             progress = task.progress()
             # progress bar row (keep progress bar string as before)
-            msg += f"\nProgress: {get_progress_bar_string(progress)} {progress}"
+            msg += f"\n<b>Progress:</b> {get_progress_bar_string(progress)} {progress}"
             # processed line
             if getattr(task.listener, "subname", None):
                 subsize = f" / {get_readable_file_size(task.listener.subsize)}"
@@ -261,23 +259,23 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
             else:
                 subsize = ""
                 count = ""
-            msg += f"\n Processed: <i>{task.processed_bytes()}{subsize} of {task.size()}</i>"
+            msg += f"\n<b>Processed:</b> <i>{task.processed_bytes()}{subsize} of {task.size()}</i>"
             if count:
-                msg += f"\n Count: <b>{count}</b>"
+                msg += f"\n<b>Count:</b> <b>{count}</b>"
 
-            msg += f"\n Status: <b>{tstatus}</b>"
-            msg += f"\n Speed: <i>{task.speed()}</i>"
+            msg += f"\n<b>Status:</b> <b>{tstatus}</b>"
+            msg += f"\n<b>Speed:</b> <i>{task.speed()}</i>"
 
             # ETA + total
             try:
                 eta_str = task.eta()
                 total_time = elapsed + get_raw_time(eta_str)
-                msg += f"\n Time: <i>{eta_str} of {get_readable_time(total_time)} ( {get_readable_time(elapsed)} )</i>"
+                msg += f"\n<b>Time:</b> <i>{eta_str} of {get_readable_time(total_time)} ( {get_readable_time(elapsed)} )</i>"
             except Exception:
-                msg += f"\n Time: <i>{task.eta()} ( {get_readable_time(elapsed)} )</i>"
+                msg += f"\n<b>Time:</b> <i>{task.eta()} ( {get_readable_time(elapsed)} )</i>"
 
             # Engine
-            msg += f"\n Engine: <i>{getattr(task, 'engine', '')}</i>"
+            msg += f"\n<b>Engine:</b> <i>{getattr(task, 'engine', '')}</i>"
 
             # STA_MODE (backwards-compatible)
                         # STA_MODE (backwards-compatible) — show without leading '#'
@@ -290,66 +288,66 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
                         ud_mode_display = " | ".join(m.lstrip('#') for m in ud_mode)
                     else:
                         ud_mode_display = str(ud_mode).lstrip('#')
-                    msg += f"\n Mode: <i>{ud_mode_display}</i>"
+                    msg += f"\n<b>Mode:</b> <i>{ud_mode_display}</i>"
                 else:
                     lm0 = str(task.listener.mode[0]).lstrip('#')
-                    msg += f"\n Mode: <i>{lm0}</i>"
+                    msg += f"\n<b>Mode:</b> <i>{lm0}</i>"
             except Exception:
                 pass
 
             # IN_MODE / OUT_MODE (new fields) — strip leading '#'
             try:
                 in_mode, out_mode = task.listener.mode
-                msg += f"\n In Mode: <i>{str(in_mode).lstrip('#')}</i>"
-                msg += f"\n Out Mode: <i>{str(out_mode).lstrip('#')}</i>"
+                msg += f"\n<b>In Mode:</b> <i>{str(in_mode).lstrip('#')}</i>"
+                msg += f"\n<b>Out Mode:</b> <i>{str(out_mode).lstrip('#')}</i>"
             except Exception:
                 try:
                     ud_mode = task.upload_details.get('mode', None) if getattr(task, 'upload_details', None) else None
                     if isinstance(ud_mode, (list, tuple)) and len(ud_mode) >= 2:
-                        msg += f"\n In Mode: <i>{str(ud_mode[0]).lstrip('#')}</i>"
-                        msg += f"\n Out Mode: <i>{str(ud_mode[1]).lstrip('#')}</i>"
+                        msg += f"\n<b>In Mode:</b> <i>{str(ud_mode[0]).lstrip('#')}</i>"
+                        msg += f"\n<b>Out Mode:</b> <i>{str(ud_mode[1]).lstrip('#')}</i>"
                 except Exception:
                     pass
 
             # Seeders / Leechers
             if hasattr(task, 'seeders_num'):
                 try:
-                    msg += f"\n Seeders: {task.seeders_num()} | Leechers: {task.leechers_num()}"
+                    msg += f"\n<b>Seeders:</b> {task.seeders_num()} | Leechers: {task.leechers_num()}"
                 except Exception:
                     pass
 
         # Seeding block
         elif tstatus == MirrorStatus.STATUS_SEED:
-            msg += f"\n Size: <i>{task.size()}</i> | Uploaded: <i>{task.uploaded_bytes()}</i>"
-            msg += f"\n Status: <b>{tstatus}</b>"
+            msg += f"\n<b>Size:</b> <i>{task.size()}</i> | Uploaded: <i>{task.uploaded_bytes()}</i>"
+            msg += f"\n<b>Status:</b> <b>{tstatus}</b>"
             try:
-                msg += f"\n Speed: <i>{task.seed_speed()}</i>"
+                msg += f"\n<b>Speed:</b> <i>{task.seed_speed()}</i>"
             except Exception:
                 pass
             try:
-                msg += f"\n Ratio: <i>{task.ratio()}</i>"
+                msg += f"\n<b>Ratio:</b> <i>{task.ratio()}</i>"
             except Exception:
                 pass
             try:
-                msg += f"\n Time: <i>{task.seeding_time()}</i> | Elapsed: <i>{get_readable_time(elapsed)}</i>"
+                msg += f"\n<b>Time:</b> <i>{task.seeding_time()}</i> | Elapsed: <i>{get_readable_time(elapsed)}</i>"
             except Exception:
                 pass
-            msg += f"\n Engine: <i>{getattr(task, 'engine', '')}</i>"
+            msg += f"\n<b>Engine:</b> <i>{getattr(task, 'engine', '')}</i>"
             try:
                 in_mode, out_mode = task.listener.mode
-                msg += f"\n In Mode: <i>{in_mode}</i>"
-                msg += f"\n Out Mode: <i>{out_mode}</i>"
+                msg += f"\n<b>In Mode:</b> <i>{in_mode}</i>"
+                msg += f"\n<b>Out Mode:</b> <i>{out_mode}</i>"
             except Exception:
                 pass
 
         # Fallback other statuses
         else:
-            msg += f"\n Size: <i>{task.size()}</i>"
-            msg += f"\n Engine: <i>{getattr(task, 'engine', '')}</i>"
+            msg += f"\n<b>Size:</b> <i>{task.size()}</i>"
+            msg += f"\n<b>Engine:</b> <i>{getattr(task, 'engine', '')}</i>"
             try:
                 in_mode, out_mode = task.listener.mode
-                msg += f"\n In Mode: <i>{in_mode}</i>"
-                msg += f"\n Out Mode: <i>{out_mode}</i>"
+                msg += f"\n<b>In Mode:</b> <i>{in_mode}</i>"
+                msg += f"\n<b>Out Mode:</b> <i>{out_mode}</i>"
             except Exception:
                 pass
 
@@ -363,14 +361,14 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
         if getattr(task, 'engine', '').startswith("qBit"):
             try:
                 # qBit select/cancel formatting like old UI but ASCII
-                msg += f"\n Select: /{BotCommands.BtSelectCommand}_{task.gid()}"
-                msg += f"\n Cancel: /{BotCommands.CancelMirror}_{task.gid()}"
+                msg += f"\n<b>Select:</b> /{BotCommands.BtSelectCommand}_{task.gid()}"
+                msg += f"\n<b>Cancel:</b> /{BotCommands.CancelMirror}_{task.gid()}"
             except Exception:
                 pass
 
         # Stop command (ASCII)
         from ..telegram_helper.bot_commands import BotCommands
-        msg += f"\n Stop: <i>/{BotCommands.CancelTaskCommand[1]}_{task.gid()}</i>\n\n"
+        msg += f"\n<b>Stop:</b> <i>/{BotCommands.CancelTaskCommand[1]}_{task.gid()}</i>\n\n"
 
     # If nothing appended
     if len(msg.strip()) == 0:
